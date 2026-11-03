@@ -19,15 +19,25 @@ npx expo start      # escanea el QR con Expo Go, o presiona "a" / "i" / "w"
 npx tsc --noEmit    # revisión de tipos
 ```
 
-Para probar los roles, inicia sesión con cualquier correo válido y una contraseña de 6+ caracteres:
+### Cuentas de prueba
 
-| Correo contiene | Rol | Efecto |
+Todavía no hay cuentas reales: el inicio de sesión está **simulado** (se reemplazará por Firebase Auth). Sirve cualquier correo que tenga `@` junto con una contraseña de **6 o más caracteres**. El rol se decide por una palabra dentro del correo:
+
+| Correo de ejemplo | Contraseña de ejemplo | Rol | Efecto |
+| --- | --- | --- | --- |
+| `voluntario@correo.com` | `123456` | Voluntario | Se oculta el botón "Reponer" en el detalle del botiquín |
+| `paramedico@correo.com` | `123456` | Paramédico | Puede reponer insumos |
+| `admin@correo.com` | `123456` | Administrador | Igual que paramédico en la app móvil |
+| `maria@correo.com` | `123456` | Paramédico | Cualquier otro correo se trata como paramédico |
+
+Para ver la pantalla de error de inicio de sesión (M1e), prueba con datos inválidos:
+
+| Correo | Contraseña | Resultado |
 | --- | --- | --- |
-| `voluntario` | Voluntario | Se oculta "Reponer" en el detalle del botiquín |
-| `admin` | Administrador | Igual que paramédico en la app móvil |
-| cualquier otro | Paramédico | Puede reponer |
+| `paramedico` (sin `@`) | `123456` | Error M1e |
+| `paramedico@correo.com` | `123` (menos de 6) | Error M1e |
 
-Un correo sin `@` o una contraseña corta lleva a la pantalla de error M1e. En "Tomar insumos", dejar el folio FRAP vacío con motivo *Accidente*, o pedir más de lo disponible, lleva a M5e.
+La pantalla "Acción no permitida" (M6e) existe, pero hoy no se puede alcanzar desde la interfaz: a los voluntarios se les oculta "Reponer", y el rechazo del servidor solo ocurrirá cuando se conecten las Security Rules de Firebase. En "Tomar insumos", dejar el folio FRAP vacío con motivo *Accidente*, o pedir más de lo disponible, lleva a M5e.
 
 ## Estructura del proyecto
 
