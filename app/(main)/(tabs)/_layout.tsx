@@ -16,28 +16,28 @@ export default function TabsLayout() {
         name="kits"
         options={{
           title: 'Botiquines',
-          tabBarIcon: ({ color, size }) => <Ionicons name="medkit-outline" size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => <Ionicons name="medkit-outline" size={size} color={typeof color === 'string' ? color : undefined} />,
         }}
       />
       <Tabs.Screen
         name="notifications"
         options={{
           title: 'Notificaciones',
-          tabBarIcon: ({ color, size }) => <Ionicons name="notifications-outline" size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => <Ionicons name="notifications-outline" size={size} color={typeof color === 'string' ? color: undefined} />,
         }}
       />
       <Tabs.Screen
         name="history"
         options={{
           title: 'Mi historial',
-          tabBarIcon: ({ color, size }) => <Ionicons name="time-outline" size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => <Ionicons name="time-outline" size={size} color={typeof color === 'string' ? color: undefined} />,
         }}
       />
       <Tabs.Screen
         name="account"
         options={{
           title: 'Cuenta',
-          tabBarIcon: ({ color, size }) => <Ionicons name="person-outline" size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => <Ionicons name="person-outline" size={size} color={typeof color === 'string' ? color: undefined} />,
         }}
       />
     </Tabs>
