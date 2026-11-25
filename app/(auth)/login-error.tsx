@@ -1,5 +1,4 @@
-import { StyleSheet, Text } from 'react-native';
-import { Linking } from 'react-native';
+import { StyleSheet, Text, Linking } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Button } from '@/components/Button';
 import { Notice } from '@/components/Notice';
