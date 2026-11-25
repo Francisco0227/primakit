@@ -44,3 +44,6 @@ yarn-error.*
 # editor / tooling
 .vscode/
 .claude/
+
+# test coverage
+coverage/
