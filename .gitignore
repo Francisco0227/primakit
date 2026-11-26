@@ -47,3 +47,7 @@ yarn-error.*
 
 # test coverage
 coverage/
+
+# firebase emulators
+.firebase/
+*-debug.log
