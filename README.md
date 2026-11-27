@@ -13,11 +13,27 @@ El panel web del administrador (W0e–W9b) está diseñado en la Etapa 2 pero **
 
 ## Cómo correrlo
 
+El proyecto usa **Expo SDK 58** (React Native 0.88, React 19.3).
+
 ```bash
 npm install
-npx expo start      # escanea el QR con Expo Go, o presiona "a" / "i" / "w"
-npx tsc --noEmit    # revisión de tipos
+npm start           # escanea el QR con Expo Go, o presiona "a" / "i" / "w"
 ```
+
+Usa `npm start` en lugar de `npx expo start`: el script ya define `EXPO_ROUTER_DISABLE_RN_NAVIGATION_CHECK=1`. Las variables de entorno esperadas están listadas, sin valores, en `.env.example`.
+
+### Scripts
+
+| Comando | Qué hace |
+| --- | --- |
+| `npm start` | Inicia Metro (servidor de desarrollo de Expo) |
+| `npm run lint` | Revisión de estilo con ESLint (`eslint-config-expo`) |
+| `npm run typecheck` | Revisión de tipos con TypeScript (`tsc --noEmit`) |
+| `npm test` | Pruebas unitarias con Jest (`jest-expo`) |
+| `npm run test:watch` | Jest en modo observador: vuelve a correr al guardar |
+| `npm run test:coverage` | Jest con reporte de cobertura (carpeta `coverage/`, ignorada por Git) |
+| `npm run test:rules` | Pruebas de las Security Rules de Firestore contra el emulador de Firebase |
+| `npm run e2e` | Flujos E2E de Maestro en un emulador de Android |
 
 ### Cuentas de prueba
 
@@ -38,6 +54,54 @@ Para ver la pantalla de error de inicio de sesión (M1e), prueba con datos invá
 | `paramedico@correo.com` | `123` (menos de 6) | Error M1e |
 
 La pantalla "Acción no permitida" (M6e) existe, pero hoy no se puede alcanzar desde la interfaz: a los voluntarios se les oculta "Reponer", y el rechazo del servidor solo ocurrirá cuando se conecten las Security Rules de Firebase. En "Tomar insumos", dejar el folio FRAP vacío con motivo *Accidente*, o pedir más de lo disponible, lleva a M5e.
+
+## Pruebas
+
+Hay tres niveles de prueba. Cada uno revisa algo distinto:
+
+| Nivel | Herramienta | Qué revisa | Dónde viven |
+| --- | --- | --- | --- |
+| Unitarias | Jest + `jest-expo` | Funciones sueltas del código | `__tests__/` |
+| Reglas de seguridad | `@firebase/rules-unit-testing` + emulador de Firestore | Que las Security Rules rechacen lo que deben rechazar | `rules-tests/` |
+| E2E (punta a punta) | Maestro | La app completa, como la usa una persona | `.maestro/` |
+
+### Unitarias (`npm test`)
+
+No requieren nada extra. Hoy solo existe una prueba de ejemplo (`__tests__/sumar.tests.ts` sobre `utils/sumar.ts`) que valida que Jest está bien configurado. La configuración está en la sección `"jest"` de `package.json` e ignora `rules-tests/`.
+
+### Reglas de Firestore (`npm run test:rules`)
+
+Requisitos en la computadora: **Java** (lo usa el emulador de Firestore) y **Firebase CLI** (`firebase-tools`, instalado de forma global).
+
+- `firebase.json` configura los emuladores de Auth (puerto 9099) y Firestore (puerto 8080), más la interfaz del emulador.
+- `firestore.rules` hoy **niega todo** (`allow read, write: if false`). Es el punto de partida "denegar por defecto"; los permisos por rol se agregarán en fases posteriores.
+- `rules-tests/deny-all.test.ts` comprueba que, sin sesión, no se puede leer ni escribir un botiquín.
+- El script usa `firebase emulators:exec` con el proyecto `demo-primakit`: prende el emulador, corre las pruebas (configuradas en `jest.rules.config.js`) y lo apaga. Los proyectos `demo-` nunca se conectan a la nube.
+
+Todavía **no existe un proyecto real de Firebase** conectado a la app.
+
+### E2E con Maestro (`npm run e2e`)
+
+Requisitos: **Maestro CLI**, **adb** (Android SDK platform-tools) y un emulador de Android (AVD). La app se abre dentro de **Expo Go**.
+
+Orden para correrlo:
+
+1. Prender el emulador y esperar a que `adb shell getprop sys.boot_completed` responda `1`.
+2. `npm start` (dejar esa terminal abierta).
+3. En otra terminal: `npm run e2e`.
+
+`scripts/e2e.js` detecta la IP de la red local con `lan-network` (el mismo paquete que usa Expo CLI) y se la pasa a Maestro como la variable `APP_URL`, así que no hay que editar los flujos al cambiar de red Wi-Fi. Luego corre todos los flujos de `.maestro/`.
+
+Flujo actual: `.maestro/abrir-app.yaml` abre la app y comprueba que se vean "Bienvenido" e "Iniciar sesión".
+
+> **Nota:** en el emulador que se usó (Android API 37), las direcciones `exp://10.0.2.2:8081` y `exp://127.0.0.1:8081` **no funcionaron** desde Expo Go; solo la IP de la red local. Por eso el script usa esa IP.
+
+## Seguridad del repositorio
+
+- **`.env.example`**: lista las variables de entorno sin valores. El `.env` real no se sube (está en `.gitignore`). Las variables `EXPO_PUBLIC_` quedan dentro de la app, así que nunca deben contener secretos.
+- **GitHub:** están activos secret scanning con **push protection**, **Dependabot alerts**, **Dependabot security updates** y **CodeQL** (configuración por defecto).
+- **Gitleaks:** se corrió `gitleaks git -v` sobre el historial y no encontró fugas.
+- **`.github/dependabot.yml`**: revisa dependencias de npm cada semana, con un máximo de 5 PRs abiertos. Agrupa los paquetes de Expo e ignora saltos mayores de `expo`/`expo-*` y saltos mayores o menores de `react`, `react-dom` y `react-native`, porque esas versiones las fija el SDK de Expo (se actualizan con `npx expo install`).
 
 ## Estructura del proyecto
 
@@ -72,6 +136,16 @@ context/                  SessionContext: sesión simulada y rol
 data/                     Datos de ejemplo (kits, historial, notificaciones)
 hooks/                    useKit: lee el parámetro :id y devuelve botiquín + insumos
 types/                    Tipos TypeScript compartidos
+utils/                    Funciones de lógica (hoy solo el ejemplo sumar.ts)
+__tests__/                Pruebas unitarias de Jest
+rules-tests/              Pruebas de Security Rules (corren contra el emulador)
+.maestro/                 Flujos E2E de Maestro
+scripts/                  e2e.js: corre Maestro con la IP local detectada
+.github/dependabot.yml    Configuración de Dependabot
+firebase.json             Configuración de los emuladores de Firebase
+firestore.rules           Security Rules de Firestore (hoy: denegar todo)
+jest.rules.config.js      Configuración de Jest para rules-tests/
+.env.example              Variables de entorno esperadas, sin valores
 ```
 
 ## Diagramas
@@ -180,6 +254,13 @@ Hoy solo existe el recuadro de la app; los servicios de Firebase son el plan del
 - [x] Navegación completa entre las pantallas móviles del diseño
 - [x] Guard de sesión y ocultar "Reponer" por rol
 - [x] Validaciones locales de "Tomar insumos"
+- [x] Actualización a Expo SDK 58
+- [x] Protección de secretos y dependencias (`.env.example`, push protection, Gitleaks, Dependabot, CodeQL)
+- [x] Jest configurado con una prueba de ejemplo
+- [x] Emulador de Firebase con reglas "denegar todo" y sus pruebas
+- [x] Primer flujo E2E con Maestro
+- [ ] Pruebas de la lógica real (validaciones de uso, reposición, conteo y registros)
+- [ ] Integración continua (GitHub Actions)
 - [ ] Autenticación real (Firebase Auth)
 - [ ] Persistencia y sincronización (Firestore)
 - [ ] Notificaciones push (FCM)
