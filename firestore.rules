@@ -1,8 +1,70 @@
 rules_version = '2';
+
+// Anything not explicitly allowed below is denied (deny by default).
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if false;
+
+    function signedIn() {
+      return request.auth != null;
     }
+
+    // Records belong to whoever creates them; the author cannot be spoofed.
+    function isOwnNewRecord() {
+      return signedIn() && request.resource.data.userId == request.auth.uid;
+    }
+
+    function validNote(data) {
+      return !('note' in data) || (data.note is string && data.note.size() <= 500);
+    }
+
+    function validMovement(data) {
+      return data.keys().hasOnly(['userId', 'kitId', 'itemName', 'type', 'quantity', 'createdAt', 'note', 'frap'])
+        && data.keys().hasAll(['userId', 'kitId', 'itemName', 'type', 'quantity', 'createdAt'])
+        && data.type in ['uso', 'reposicion']
+        && data.kitId is string && data.kitId.size() > 0
+        && data.itemName is string && data.itemName.size() > 0
+        && data.quantity is int && data.quantity >= 1 && data.quantity <= 100
+        && data.createdAt == request.time
+        && (!('frap' in data) || (data.frap is string && data.frap.size() <= 30))
+        && validNote(data);
+    }
+
+    // Catalog and kits: any signed-in user reads. Writes come from trusted scripts; admin edits arrive in phase 5.
+    match /kits/{kitId} {
+      allow read: if signedIn();
+    }
+    match /items/{itemId} {
+      allow read: if signedIn();
+    }
+    match /kitItems/{kitItemId} {
+      allow read: if signedIn();
+    }
+
+    // Append-only records (R4): only "create" exists, so editing, deleting or re-sending the same id is denied.
+    match /movements/{movementId} {
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isOwnNewRecord() && validMovement(request.resource.data);
+    }
+
+    match /inventoryChecks/{checkId} {
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isOwnNewRecord()
+        && request.resource.data.keys().hasOnly(['userId', 'kitId', 'counts', 'createdAt', 'note'])
+        && request.resource.data.kitId is string
+        && request.resource.data.counts is list
+        && request.resource.data.createdAt == request.time
+        && validNote(request.resource.data);
+    }
+
+    match /reports/{reportId} {
+      allow create: if isOwnNewRecord()
+        && request.resource.data.keys().hasOnly(['userId', 'kitId', 'type', 'description', 'createdAt'])
+        && request.resource.data.kitId is string
+        && request.resource.data.description is string
+        && request.resource.data.description.size() <= 500
+        && request.resource.data.createdAt == request.time;
+    }
+
+    // users, alerts and auditLogs have no client access yet: Cloud Functions write them and phase 5 adds role-based reads.
   }
 }
