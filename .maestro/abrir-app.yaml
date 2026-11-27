@@ -1,0 +1,8 @@
+# Flujo mínimo: abrir PrimaKit en Expo Go y ver la pantalla de inicio de sesión.
+appId: host.exp.exponent
+---
+- openLink: ${APP_URL}
+- extendedWaitUntil:
+    visible: "Bienvenido"
+    timeout: 60000
+- assertVisible: "Iniciar sesión"
