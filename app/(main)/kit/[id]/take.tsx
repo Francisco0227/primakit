@@ -9,6 +9,7 @@ import { Screen } from '@/components/Screen';
 import { TextField } from '@/components/TextField';
 import { colors, spacing } from '@/constants/theme';
 import { useKit } from '@/hooks/useKit';
+import { validateUse } from '@/utils/validateUse';
 
 const reasons = ['Accidente', 'Reemplazo dañado', 'Caducado', 'Otro'];
 
@@ -21,19 +22,19 @@ export default function TakeScreen() {
   const [frap, setFrap] = useState('');
 
   const item = items.find((i) => i.id === itemId) ?? items[0];
-
+  
   const save = () => {
-    const frapMissing = reason === 'Accidente' && frap.trim() === '';
-    const tooMany = quantity > item.current;
-    if (frapMissing || tooMany) {
+    const errors = validateUse({ quantity, available: item.current, reason, frap });
+    if (errors.length > 0) {
       router.push({
         pathname: '/kit/[id]/take-error',
-        params: { id, item: item.name, quantity, available: item.current, frapMissing: frapMissing ? '1' : '0' },
+        params: { id, item: item.name, quantity, available: item.current, frapMissing: errors.includes('frap_missing') ? '1' : '0' },
       });
       return;
     }
     router.replace({ pathname: '/saved', params: { kitId: id } });
   };
+
 
   return (
     <Screen>
